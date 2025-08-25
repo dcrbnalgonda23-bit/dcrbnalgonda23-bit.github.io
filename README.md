@@ -1,1 +1,1429 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crime Database - Nalgonda District Police</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .nav-active {
+            color: #facc15; /* yellow-400 */
+        }
+        .loader {
+            border: 4px solid #4b5563;
+            border-radius: 50%;
+            border-top: 4px solid #3b82f6;
+            width: 50px;
+            height: 50px;
+            animation: spin 1.5s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        label {
+            font-weight: 600;
+            color: #4b5563;
+        }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            width: 90%;
+            max-width: 600px;
+            color: #1f2937;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Splash Screen -->
+    <div id="splashScreen" class="flex flex-col justify-center items-center h-screen bg-gray-900 text-white">
+        <div class="text-center">
+            <h1 class="text-5xl font-bold mb-4">Crime Database</h1>
+            <div class="loader mx-auto"></div>
+            <p class="text-xl mt-4 text-gray-400">Loading application...</p>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="hidden flex items-center justify-center h-screen bg-gray-200">
+        <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Police Department Login</h2>
+            <form id="loginForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="username">Username</label>
+                    <input id="username" type="text" value="admin" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your username">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="password">Password</label>
+                    <input id="password" type="password" value="password123" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="******************">
+                </div>
+                <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline w-full" type="submit">Sign In</button>
+                <p id="loginError" class="text-red-500 text-center text-sm mt-4"></p>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Main Application Wrapper -->
+    <div id="appWrapper" class="hidden">
+        <header class="bg-white shadow-md">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-800 cursor-pointer" onclick="navigate('dashboard')">Crime Database</h1>
+                <div class="flex items-center space-x-4">
+                    <span id="welcomeUser" class="text-gray-600"></span>
+                    <button onclick="navigate('settings')" class="text-gray-500 hover:text-gray-700">Settings</button>
+                    <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Logout</button>
+                </div>
+            </div>
+            <nav class="bg-gray-800 text-white">
+                <div id="navBar" class="container mx-auto px-4 py-2 flex space-x-6 overflow-x-auto">
+                    <button onclick="navigate('dashboard')" data-screen="dashboard" class="nav-btn hover:text-yellow-300 nav-active flex-shrink-0">Dashboard</button>
+                    <button onclick="navigate('crimeRecords')" data-screen="crimeRecords" class="nav-btn hover:text-yellow-300 flex-shrink-0">Crime Records</button>
+                    <button onclick="navigate('categories')" data-screen="categories" class="nav-btn hover:text-yellow-300 flex-shrink-0">Categories</button>
+                    <button onclick="navigate('analytics')" data-screen="analytics" class="nav-btn hover:text-yellow-300 flex-shrink-0">Analytics</button>
+                    <button onclick="navigate('reports')" data-screen="reports" class="nav-btn hover:text-yellow-300 flex-shrink-0">Reports</button>
+                </div>
+            </nav>
+        </header>
+
+        <main id="mainContent" class="p-4 md:p-8 container mx-auto">
+            <!-- Screens will be rendered here -->
+        </main>
+    </div>
+    
+    <!-- Gemini Modal -->
+    <div id="geminiModal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <h3 id="geminiModalTitle" class="text-2xl font-bold mb-4"></h3>
+            <div id="geminiModalBody" class="text-gray-700 whitespace-pre-wrap max-h-[70vh] overflow-y-auto"></div>
+            <div class="text-right mt-6">
+                <button onclick="hideGeminiModal()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg">Close</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Global State & Mock Data
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+let state = {
+    screen: 'splash',
+    user: null,
+    crimeRecords: [],
+    crimeCategories: [],
+    selectedCrimeId: null,
+    charts: {}, // To hold chart instances
+};
+
+const locationData = {
+    "Nalgonda Sub-Division": {
+        "Nalgonda I Town PS": ["Nalgonda I Town PS"],
+        "Nalgonda II Town Circle": ["Nalgonda II Town PS", "Nalgonda Rural"],
+        "Chandur Circle": ["Chandur", "Munugode", "Kanagal", "Gattuppal"],
+        "Shaligowraram Circle": ["Shaligowraram", "Kattangur", "Kethepally", "Thipparthy"],
+        "Narketpally Circle": ["Narketpally", "Chityala"],
+        "Women PS": ["Women PS"],
+        "Nakrekal PS": ["Nakrekal PS"],
+    },
+    "Devarakonda Sub-Division": {
+        "Dindi Circle": ["Dindi", "Chandampet", "Neredugommu"],
+        "Devarakonda PS": ["Devarakonda PS"],
+        "Nampally Circle": ["Nampally", "Chinthapally", "Marriguda"],
+        "Kondamallepally Circle": ["Kondamallepally", "Gudipally", "Gurrampode"],
+    },
+    "Miryalaguda Sub-Division": {
+        "Miryalaguda I Town PS": ["Miryalaguda I Town PS"],
+        "Miryalaguda II Town PS": ["Miryalaguda II Town PS"],
+        "Miryalaguda Rural Circle": ["Miryalaguda Rural", "Vemulapally", "Madgulapally", "Adavidevulapally", "Wadapally"],
+        "Nagarjuna Sagar Circle": ["Vijayapuri", "Thirumalagiri Sagar", "Peddavoora"],
+        "Haliya Circle": ["Haliya", "Nidmanoor", "Tripuraram"],
+    }
+};
+
+let enforcementCategories = ['PDS Rice', 'Sand Theft', 'Gaming Act', 'Ganja (NDPS) Case', 'Spurious Seeds'];
+
+function loadInitialData() {
+    state.crimeCategories = JSON.parse(localStorage.getItem('crimeCategories')) || [
+        { id: 1, name: 'Theft', subcategories: ['Burglary', 'Robbery', 'Shoplifting', 'Motor Vehicle Theft', 'Theft from Person'] },
+        { id: 2, name: 'Assault', subcategories: ['Simple Assault', 'Aggravated Assault', 'Attempt to Murder'] },
+        { id: 3, name: 'Hurt Cases', subcategories: ['Grievous Hurt', 'Simple Hurt'] },
+        { id: 4, name: 'Crimes Against Women', subcategories: ['Molestation (Sec 354 IPC)', 'Rape (Sec 376 IPC)', 'Dowry Death (Sec 304B IPC)', 'Cruelty by Husband (Sec 498A IPC)'] },
+        { id: 5, name: 'Cybercrime', subcategories: ['Phishing', 'Online Fraud', 'Hacking', 'Cyber Stalking'] },
+        { id: 6, name: 'Traffic Offenses', subcategories: ['Rash Driving', 'Drunken Driving', 'Hit and Run'] },
+    ];
+    state.crimeRecords = JSON.parse(localStorage.getItem('crimeRecords')) || [
+        { id: 101, title: 'Burglary on Elm Street', crNo: 123, year: 2024, nature: 'Grave', category: 'Theft', subcategory: 'Burglary', dateOfOffence: '2024-07-20', dateOfReport: '2024-07-22', status: 'Open', description: 'Residence broken into.', sectionOfLaw: 'Sec 379 IPC', subDivision: 'Nalgonda Sub-Division', circle: 'Nalgonda I Town PS', policeStation: 'Nalgonda I Town PS', ccNumber: 'CC 456', crimeType: 'Property Offences', crimeClassification1: '', crimeClassification2: 'Property Offences', caseStatus: 'Under Investigation' },
+        { id: 102, title: 'Aggravated Assault', crNo: 124, year: 2024, nature: 'Grave', category: 'Assault', subcategory: 'Aggravated Assault', dateOfOffence: '2024-06-15', dateOfReport: '2024-06-15', status: 'Closed', description: 'Altercation led to serious injury.', sectionOfLaw: 'Sec 325 IPC', subDivision: 'Devarakonda Sub-Division', circle: 'Devarakonda PS', policeStation: 'Devarakonda PS', ccNumber: 'CC 457', courtDisposal: 'Conviction', convictionType: 'Trial Con', caseStatus: 'Court Disposal' },
+        { id: 103, title: 'Online Phishing Scam', crNo: 125, year: 2023, nature: 'Non Grave', category: 'Cybercrime', subcategory: 'Phishing', dateOfOffence: '2023-11-01', dateOfReport: '2023-11-05', status: 'Open', description: 'Victim lost money to a fake website.', sectionOfLaw: 'Sec 420 IPC, IT Act', subDivision: 'Miryalaguda Sub-Division', circle: 'Miryalaguda I Town PS', policeStation: 'Miryalaguda I Town PS', ccNumber: '', crimeType: 'Cyber Crimes', cyberCrimeSubType: 'Phishing', caseStatus: 'Pending Trial' },
+        { id: 104, title: 'Dowry Harassment Case', crNo: 126, year: 2024, nature: 'Grave', category: 'Crimes Against Women', subcategory: 'Cruelty by Husband (Sec 498A IPC)', dateOfOffence: '2024-05-10', dateOfReport: '2024-05-20', status: 'Open', description: 'Complaint of harassment for dowry.', sectionOfLaw: 'Sec 498A IPC', subDivision: 'Nalgonda Sub-Division', circle: 'Women PS', policeStation: 'Women PS', ccNumber: '', crimeClassification2: 'Crime Against Women', caseStatus: 'Under Investigation' },
+    ];
+}
+
+function saveData() {
+    localStorage.setItem('crimeCategories', JSON.stringify(state.crimeCategories));
+    localStorage.setItem('crimeRecords', JSON.stringify(state.crimeRecords));
+}
+
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Application Flow & Navigation
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        document.getElementById('splashScreen').classList.add('hidden');
+        document.getElementById('loginScreen').classList.remove('hidden');
+    }, 1500);
+    document.getElementById('loginForm').addEventListener('submit', handleLogin);
+});
+
+function handleLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('username').value.trim();
+    if (username) {
+        state.user = { name: username };
+        document.getElementById('loginError').textContent = '';
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appWrapper').classList.remove('hidden');
+        loadInitialData();
+        navigate('dashboard');
+    } else {
+        document.getElementById('loginError').textContent = 'Please enter a username.';
+    }
+}
+
+function handleLogout() {
+    state.user = null;
+    document.getElementById('appWrapper').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+function navigate(screen) {
+    // Destroy charts before navigating away from analytics
+    if (state.screen === 'analytics') {
+        Object.values(state.charts).forEach(chart => chart.destroy());
+        state.charts = {};
+    }
+    state.screen = screen;
+    renderScreen();
+    updateActiveNav();
+}
+
+function updateActiveNav() {
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.toggle('nav-active', btn.dataset.screen === state.screen);
+    });
+}
+
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Screen Renderer
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+function renderScreen() {
+    const mainContent = document.getElementById('mainContent');
+    if (state.user) {
+        document.getElementById('welcomeUser').textContent = `Welcome, ${state.user.name}`;
+    }
+    const screens = {
+        'dashboard': CrimeDashboard,
+        'crimeRecords': CrimeRecordsList,
+        'addCrime': AddCrimeRecord,
+        'crimeDetail': CrimeDetailView,
+        'categories': CrimeCategoriesManagement,
+        'analytics': AnalyticsDashboard,
+        'reports': ReportsGeneration,
+        'settings': UserProfileAndSettings,
+    };
+    mainContent.innerHTML = (screens[state.screen] || CrimeDashboard)();
+    
+    // Post-render actions
+    if (state.screen === 'crimeRecords') addRecordListEventListeners();
+    if (state.screen === 'addCrime') addCrimeFormEventListeners();
+    if (state.screen === 'categories') addCategoryManagementEventListeners();
+    if (state.screen === 'analytics') initializeAnalytics();
+}
+
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Component Templates
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+function CrimeDashboard() {
+    const openCases = state.crimeRecords.filter(c => c.status === 'Open').length;
+    return `
+        <h2 class="text-3xl font-bold mb-6 text-gray-800">Crime Dashboard</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-white p-6 rounded-xl shadow-md"><h3 class="font-bold text-lg text-gray-600">Total Records</h3><p class="text-4xl font-extrabold text-blue-500">${state.crimeRecords.length}</p></div>
+            <div class="bg-white p-6 rounded-xl shadow-md"><h3 class="font-bold text-lg text-gray-600">Open Cases</h3><p class="text-4xl font-extrabold text-red-500">${openCases}</p></div>
+            <div class="bg-white p-6 rounded-xl shadow-md"><h3 class="font-bold text-lg text-gray-600">Closed Cases</h3><p class="text-4xl font-extrabold text-green-500">${state.crimeRecords.length - openCases}</p></div>
+            <div class="bg-yellow-400 p-6 rounded-xl shadow-md text-gray-800 flex flex-col justify-center items-center cursor-pointer hover:bg-yellow-500 transition-colors" onclick="navigate('addCrime')"><h3 class="font-bold text-lg">Add New Record</h3><p class="text-4xl font-extrabold">+</p></div>
+        </div>`;
+}
+
+function CrimeRecordsList() {
+    const crimeTypeOptions = state.crimeCategories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('');
+
+    let policeStations = [];
+    for (const subDivision in locationData) {
+        for (const circle in locationData[subDivision]) {
+            policeStations.push(...locationData[subDivision][circle]);
+        }
+    }
+    const uniquePoliceStations = [...new Set(policeStations)];
+    const policeStationOptions = uniquePoliceStations.map(ps => `<option value="${ps}">${ps}</option>`).join('');
+
+    return `
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-3xl font-bold text-gray-800">Crime Records</h2>
+            <button onclick="navigate('addCrime')" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Add Record</button>
+        </div>
+
+        <!-- Search & Filter Section -->
+        <div class="mb-6 bg-white p-4 rounded-xl shadow-md">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Crime Type -->
+                <div>
+                    <label for="filter-crime-type" class="block text-sm font-medium text-gray-700">Crime Type</label>
+                    <select id="filter-crime-type" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="">All Types</option>
+                        ${crimeTypeOptions}
+                    </select>
+                </div>
+                <!-- Police Station -->
+                <div>
+                    <label for="filter-police-station" class="block text-sm font-medium text-gray-700">Police Station</label>
+                    <select id="filter-police-station" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="">All Stations</option>
+                        ${policeStationOptions}
+                    </select>
+                </div>
+                 <!-- Date From -->
+                <div>
+                    <label for="filter-date-from" class="block text-sm font-medium text-gray-700">From Date</label>
+                    <input type="date" id="filter-date-from" class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                </div>
+                <!-- Date To -->
+                <div>
+                    <label for="filter-date-to" class="block text-sm font-medium text-gray-700">To Date</label>
+                    <input type="date" id="filter-date-to" class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                </div>
+                <!-- Keyword Search -->
+                <div class="md:col-span-2 lg:col-span-4">
+                    <label for="filter-keyword-search" class="block text-sm font-medium text-gray-700">Keyword Search (FIR No, Title, IPC Section)</label>
+                    <input type="text" id="filter-keyword-search" placeholder="e.g., 123, Burglary, 302..." class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                </div>
+            </div>
+            <div class="mt-4 flex justify-end space-x-3">
+                <button id="reset-filter-btn" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 text-sm font-medium">Reset</button>
+                <button id="apply-filter-btn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-sm font-medium">
+                    Search
+                </button>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-3">
+            <h3 class="text-lg font-semibold text-gray-800">Results</h3>
+            <button id="export-btn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 text-sm font-medium">
+                Export to Excel
+            </button>
+        </div>
+        <div class="bg-white shadow-md rounded-lg overflow-x-auto">
+            <table class="min-w-full leading-normal">
+                <thead><tr>
+                    <th class="p-3 border-b-2 bg-gray-100 text-left text-xs font-semibold uppercase">Cr.No & Year</th>
+                    <th class="p-3 border-b-2 bg-gray-100 text-left text-xs font-semibold uppercase">Title</th>
+                    <th class="p-3 border-b-2 bg-gray-100 text-left text-xs font-semibold uppercase">Crime Head (SCRB)</th>
+                    <th class="p-3 border-b-2 bg-gray-100 text-left text-xs font-semibold uppercase">Date of Report</th>
+                    <th class="p-3 border-b-2 bg-gray-100 text-left text-xs font-semibold uppercase">Status</th>
+                    <th class="p-3 border-b-2 bg-gray-100"></th>
+                </tr></thead>
+                <tbody id="recordsTableBody"></tbody>
+            </table>
+        </div>`;
+}
+
+function AccordionSection(title, content, isOpen = false) {
+    return `
+        <div class="border border-gray-200 rounded-lg mb-2">
+            <button type="button" class="accordion-header w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100">
+                <h3 class="text-lg font-semibold text-gray-700">${title}</h3>
+                <span class="transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}">▼</span>
+            </button>
+            <div class="accordion-content" ${isOpen ? 'style="max-height: 2000px;"' : ''}>
+                <div class="p-6 border-t">
+                    ${content}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function AddCrimeRecord() {
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from({length: 10}, (_, i) => `<option value="${currentYear - i}">${currentYear - i}</option>`).join('');
+    const subDivisionOptions = Object.keys(locationData).map(sd => `<option value="${sd}">${sd}</option>`).join('');
+
+    const caseLocationContent = `
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div><label for="crNo">Cr.No.</label><input type="number" id="crNo" class="w-full p-2 border rounded-lg mt-1" required></div>
+            <div><label for="year">Year</label><select id="year" class="w-full p-2 border rounded-lg mt-1" required>${yearOptions}</select></div>
+            <div><label for="subDivision">Sub-Division</label><select id="subDivision" class="w-full p-2 border rounded-lg mt-1" required><option value="">Select...</option>${subDivisionOptions}</select></div>
+            <div><label for="circle">Circle/SHO</label><select id="circle" class="w-full p-2 border rounded-lg mt-1" required disabled><option value="">Select...</option></select></div>
+            <div class="md:col-span-2"><label for="policeStation">Police Station</label><select id="policeStation" class="w-full p-2 border rounded-lg mt-1" required disabled><option value="">Select...</option></select></div>
+        </div>`;
+
+    const crimeClassificationContent = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+            <div class="space-y-1">
+                <label for="crimeType">Type of Crime</label>
+                <select id="crimeType" class="w-full p-2 border rounded-lg">
+                    <option value="">Select...</option>
+                    <option value="Property Offences">Property Offences</option>
+                    <option value="Cheating">Cheating</option>
+                    <option value="Criminal Breach of Trust">Criminal Breach of Trust</option>
+                    <option value="Misappropriation">Misappropriation</option>
+                    <option value="Forgery">Forgery</option>
+                    <option value="Cyber Crimes">Cyber Crimes</option>
+                </select>
+                <div id="cheatingSubTypeSection" class="hidden mt-2">
+                    <label for="cheatingSubType" class="text-sm">Cheating Sub-Type</label>
+                    <select id="cheatingSubType" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option>Chitfunds</option>
+                        <option>Money Laundering</option>
+                        <option>Land, Plots, House fraud</option>
+                        <option>Job Fraud</option>
+                        <option>Business fraud</option>
+                        <option>Other Frauds</option>
+                    </select>
+                </div>
+                <div id="cyberCrimeSubTypeSection" class="hidden mt-2">
+                    <label for="cyberCrimeSubType" class="text-sm">Cyber Crime Sub-Type</label>
+                    <select id="cyberCrimeSubType" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option>Hacking</option>
+                        <option>Identity Theft</option>
+                        <option>Phishing</option>
+                        <option>Sending Offensive Electronic Messages</option>
+                        <option>Data Fraud</option>
+                        <option>Banking Online</option>
+                        <option>ATM/Credit/Debit Card - Pin/OTP Fraud</option>
+                        <option>Nudity Fraud</option>
+                        <option>Extortion (False Cases) Fraud</option>
+                    </select>
+                </div>
+            </div>
+            <div><label for="crimeCategory">Crime Head (SCRB)</label><select id="crimeCategory" class="w-full p-2 border rounded-lg mt-1" required><option value="">Select...</option>${state.crimeCategories.map(c=>`<option value="${c.name}">${c.name}</option>`).join('')}</select></div>
+            <div><label for="crimeSubcategory">Subcategory</label><select id="crimeSubcategory" class="w-full p-2 border rounded-lg mt-1" required disabled><option value="">Select...</option></select></div>
+            
+            <div class="space-y-1">
+                <label for="crimeClassification1">Crime Classification-1</label>
+                <select id="crimeClassification1" class="w-full p-2 border rounded-lg">
+                    <option value="">Select...</option>
+                    <option value="SC/ST Act">SC/ST Act</option>
+                    <option value="NDPS Ganja">NDPS Ganja</option>
+                    <option value="Enforcement">Enforcement</option>
+                </select>
+                <div id="scstSection" class="hidden mt-2">
+                    <label for="scstType" class="text-sm">SC/ST Type</label>
+                    <select id="scstType" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option value="SC">SC (Scheduled Caste)</option>
+                        <option value="ST">ST (Scheduled Tribe)</option>
+                    </select>
+                </div>
+                <div id="ndpsSection" class="hidden mt-2">
+                    <label for="ndpsQuantity" class="text-sm">NDPS Ganja Quantity</label>
+                    <select id="ndpsQuantity" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option value="Small">Small Quantity</option>
+                        <option value="Medium">Medium Quantity</option>
+                        <option value="Large">Large Quantity</option>
+                    </select>
+                </div>
+                <div id="enforcementTypeSection" class="hidden mt-2">
+                    <label for="enforcementType" class="text-sm">Enforcement Type</label>
+                    <select id="enforcementType" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option>PDS Rice</option>
+                        <option>Gaming Act</option>
+                        <option>Sand Theft</option>
+                        <option>Excise and Prohibition Cases</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <label for="crimeClassification2">Crime Classification-2</label>
+                <select id="crimeClassification2" class="w-full p-2 border rounded-lg">
+                    <option value="">Select...</option>
+                    <option>POCSO Act</option>
+                    <option>PITA Act</option>
+                    <option>Property Offences</option>
+                    <option>Road Accidents</option>
+                    <option>Missing</option>
+                    <option>Suspicious Deaths</option>
+                    <option>Crime Against Women</option>
+                    <option>Crime Against Children</option>
+                    <option>Crime Against Senior Citizens</option>
+                    <option>Crime Against Physically Handicapped</option>
+                    <option value="Other">Other</option>
+                </select>
+                <div id="crimeClassification2OtherSection" class="hidden mt-2">
+                    <label for="crimeClassification2Other" class="text-sm">Specify Other</label>
+                    <input type="text" id="crimeClassification2Other" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                </div>
+            </div>
+            
+            <div><label for="nature">Nature of Crime</label><select id="nature" class="w-full p-2 border rounded-lg mt-1" required><option value="">Select...</option><option>Grave</option><option>Non Grave</option></select></div>
+        </div>
+        <div class="mt-4"><label for="crimeTitle">Title</label><input type="text" id="crimeTitle" placeholder="e.g., Burglary on Elm Street" class="w-full p-2 border rounded-lg mt-1" required></div>
+        <div class="mt-4"><label for="sectionOfLaw">Section of Law</label><textarea id="sectionOfLaw" class="w-full p-2 border rounded-lg mt-1" rows="2" placeholder="Enter all related sections..."></textarea></div>`;
+
+    const accusedContent = `
+        <div class="flex justify-between items-center mb-4">
+            <div class="flex items-center space-x-4">
+                <h4 class="font-semibold text-gray-700">Accused Status</h4>
+                <select id="accusedStatus" class="p-2 border rounded-lg text-sm">
+                    <option value="Unknown">Unknown</option>
+                    <option value="Known">Known</option>
+                </select>
+            </div>
+            <button type="button" id="addAccusedBtn" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg text-sm hidden">+ Add Accused</button>
+        </div>
+        <div id="accusedListSection" class="hidden space-y-4"><div id="accusedList"></div></div>`;
+        
+    const complainantVictimContent = `
+        <h4 class="font-semibold text-gray-700 mb-4">Complainant Details</h4>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div><label for="complainantType">Complainant Type</label><select id="complainantType" class="w-full p-2 border rounded-lg mt-1"><option>Written Petition</option><option>Sumoto by Police</option><option>Endorsed by Superior Govt Officers Commissions</option><option>100 Dial</option><option>Court Refer Case</option><option>Any Other</option></select></div>
+            <div class="md:col-span-3"><label for="complainantName">Complainant Name</label><input type="text" id="complainantName" class="w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="complainantFatherHusbandName">Father/Husband Name</label><input type="text" id="complainantFatherHusbandName" class="w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="complainantAge">Age</label><input type="number" id="complainantAge" class="w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="complainantOccupation">Occupation</label><select id="complainantOccupation" class="w-full p-2 border rounded-lg mt-1"><option value="">Select...</option><option>Student</option><option>Govt. Job</option><option>Private Job</option><option>Agriculture</option><option>Senior Citizen (Above 60 Years)</option><option>Foreigner</option><option>Political Leader</option></select></div>
+            <div class="md:col-span-4"><label for="complainantOtherDetails">Any Other Details</label><textarea id="complainantOtherDetails" class="w-full p-2 border rounded-lg mt-1" rows="2"></textarea></div>
+        </div>
+        <div class="border-t mt-6 pt-6">
+            <h4 class="font-semibold text-gray-700 mb-4">Victim Details</h4>
+            <div><label for="victimStatus">Victim Status</label><select id="victimStatus" class="w-full p-2 border rounded-lg mt-1 max-w-xs"><option value="Not Applicable">Not Applicable</option><option value="Died">Died</option><option value="Murdered">Murdered</option><option value="Missing">Missing</option><option value="Unknown">Unknown</option><option value="Injured">Injured</option><option value="Minor">Minor</option><option value="un-Sound person">un-Sound person</option><option value="Physically Challenged">Physically Challenged</option></select></div>
+            <div id="victimDetailsSection" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div><label for="victimName">Name with Surname</label><input type="text" id="victimName" class="w-full p-2 border rounded-lg mt-1"></div>
+                <div><label for="victimFatherName">Father Name</label><input type="text" id="victimFatherName" class="w-full p-2 border rounded-lg mt-1"></div>
+                <div><label for="victimAge">Age</label><input type="number" id="victimAge" class="w-full p-2 border rounded-lg mt-1"></div>
+                <div class="md:col-span-3"><label for="victimAddress">Residential Address</label><textarea id="victimAddress" class="w-full p-2 border rounded-lg mt-1" rows="2"></textarea></div>
+                <div><label for="victimOccupation">Occupation</label><select id="victimOccupation" class="w-full p-2 border rounded-lg mt-1"><option value="">Select...</option><option>Student</option><option>Govt. Job</option><option>Private Job</option><option>Agriculture</option><option>Senior Citizen (Above 60 Years)</option><option>Foreigner</option></select></div>
+                <div class="md:col-span-2"><label for="victimOtherDetails">Any Other Details</label><textarea id="victimOtherDetails" class="w-full p-2 border rounded-lg mt-1" rows="2"></textarea></div>
+            </div>
+        </div>`;
+
+    const datesAndStatusContent = `
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div><label for="dateOfOffence">Date of Offence</label><input type="date" id="dateOfOffence" class="w-full p-2 border rounded-lg mt-1" required></div>
+            <div><label for="dateOfReport">Date of Report</label><input type="date" id="dateOfReport" class="w-full p-2 border rounded-lg mt-1" required></div>
+            <div><label for="daysSinceReport">Days Since Report</label><input type="text" id="daysSinceReport" class="w-full p-2 border bg-gray-200 rounded-lg mt-1" disabled></div>
+            <div><label for="sectionModificationDate">Section Mod. Date</label><input type="date" id="sectionModificationDate" class="w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="dateOfCharge">Date of Charge</label><input type="date" id="dateOfCharge" class="w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="dateOfCCObtained">Date CC Obtained</label><input type="date" id="dateOfCCObtained" class="w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="disposalDate">Disposal Date (Optional)</label><input type="date" id="disposalDate" class="w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="reopenDate">Reopen Date (Optional)</label><input type="date" id="reopenDate" class="w-full p-2 border rounded-lg mt-1"></div>
+        </div>
+        <div class="border-t mt-6 pt-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+             <div class="space-y-1">
+                <label for="complainantCaste">Caste</label>
+                <input type="text" id="complainantCaste" class="w-full p-2 border rounded-lg mt-1">
+            </div>
+            <div class="space-y-1">
+                <label for="policeDisposal">Police Disposal</label>
+                <select id="policeDisposal" class="w-full p-2 border rounded-lg">
+                    <option value="">Select...</option>
+                    <option value="Un-Detected">Un-Detected</option>
+                    <option value="False">False</option>
+                    <option value="Missing Cases Detected">Missing Cases Detected</option>
+                    <option value="Suspicious Death">Suspicious Death</option>
+                </select>
+                <div id="falseCaseSection" class="hidden mt-2 space-y-2">
+                    <label for="falseCaseType" class="text-sm">False Case Type</label>
+                    <select id="falseCaseType" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option>Lack of Evidence</option>
+                        <option>Transfer to Other PS</option>
+                        <option>Mistake of Fact</option>
+                        <option>Civil Nature</option>
+                    </select>
+                    <div id="transferPsSection" class="hidden">
+                         <label for="transferPsName" class="text-sm">Specify Police Station</label>
+                         <input type="text" id="transferPsName" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                    </div>
+                </div>
+                <div id="suspiciousDeathSection" class="hidden mt-2 space-y-2">
+                    <label for="suspiciousDeathCause" class="text-sm">Cause of Death</label>
+                    <select id="suspiciousDeathCause" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option>Due to Debts</option>
+                        <option>Love Failure</option>
+                        <option>Family Disputes</option>
+                        <option>Mental ill Health</option>
+                        <option>Any other Reasons</option>
+                    </select>
+                    <label for="suspiciousDeathMethod" class="text-sm">Method of Death</label>
+                    <select id="suspiciousDeathMethod" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option>Drowning</option>
+                        <option>Consuming Poison</option>
+                        <option>Hanging</option>
+                        <option>Jump from Heights</option>
+                        <option>Well</option>
+                        <option>Self Accident</option>
+                        <option>Set Fire</option>
+                        <option>Any other Reason</option>
+                    </select>
+                </div>
+            </div>
+            <div class="space-y-1">
+                <label for="courtDisposal">Court Disposal</label>
+                <select id="courtDisposal" class="w-full p-2 border rounded-lg">
+                    <option value="">Select...</option>
+                    <option value="Conviction">Conviction</option>
+                    <option value="Acquittal">Acquittal</option>
+                    <option value="Compromise">Compromise</option>
+                </select>
+                <div id="convictionTypeSection" class="hidden mt-2 space-y-1">
+                    <label for="convictionType" class="text-sm">Conviction Type</label>
+                    <select id="convictionType" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option>Trial Con</option>
+                        <option>Admission Con</option>
+                    </select>
+                </div>
+                <div id="acquittalTypeSection" class="hidden mt-2 space-y-1">
+                    <label for="acquittalType" class="text-sm">Acquittal Type</label>
+                    <select id="acquittalType" class="w-full p-2 border rounded-lg mt-1 text-sm">
+                        <option>Action Abated (Trial Period Acc Died)</option>
+                        <option>Quash</option>
+                        <option>Withdraw Prosecution</option>
+                        <option>Trial Acquittal</option>
+                        <option>Govt. Order Close</option>
+                    </select>
+                </div>
+            </div>
+             <div class="md:col-span-1"><label for="ccType">CC/PRC/SC/LPC/STC Number</label><div class="flex items-center mt-1"><select id="ccType" class="p-2 border rounded-l-lg bg-gray-50"><option>CC</option><option>PRC</option><option>SC</option><option>LPC</option><option>STC</option></select><input type="text" id="ccNumber" placeholder="Number" class="w-full p-2 border-t border-b border-r rounded-r-lg"></div></div>
+             <div>
+                <label for="caseStatus">Case Status</label>
+                <select id="caseStatus" class="w-full p-2 border rounded-lg mt-1">
+                    <option>Under Investigation</option>
+                    <option>Pending Trial</option>
+                    <option>Court Disposal</option>
+                    <option>Police Disposal</option>
+                </select>
+             </div>
+        </div>`;
+
+    const firContent = `
+        <label for="crimeDescription">FIR Description</label>
+        <textarea id="crimeDescription" placeholder="Provide a detailed narrative of the crime..." class="w-full p-3 border rounded-lg mt-1" rows="5" required></textarea>
+        <div class="text-right mt-2">
+            <button type="button" id="draftFirBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">✨ Draft FIR Description with AI</button>
+        </div>`;
+
+    return `
+        <div class="max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Add New Crime Record</h2>
+            <form id="addCrimeForm">
+                ${AccordionSection('Case & Location Details', caseLocationContent, true)}
+                ${AccordionSection('Crime Classification & Details', crimeClassificationContent)}
+                ${AccordionSection('Accused Details', accusedContent)}
+                ${AccordionSection('Complainant & Victim Details', complainantVictimContent)}
+                ${AccordionSection('Key Dates & Case Status', datesAndStatusContent)}
+                ${AccordionSection('First Information Report (FIR)', firContent)}
+                
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button type="button" onclick="navigate('crimeRecords')" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg">Cancel</button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg">Add Record</button>
+                </div>
+            </form>
+        </div>
+    `;
+}
+
+function CrimeDetailView() {
+    const crime = state.crimeRecords.find(c => c.id === state.selectedCrimeId);
+    if (!crime) return `<div class="text-center">No crime found. <button onclick="navigate('crimeRecords')" class="text-blue-500">Go back</button></div>`;
+    
+    let accusedHtml = '';
+    if (crime.accusedKnown === 'Known' && Array.isArray(crime.accusedDetails) && crime.accusedDetails.length > 0) {
+        accusedHtml = crime.accusedDetails.map(acc => `
+            <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+                    <p class="md:col-span-3"><strong>Name:</strong> ${acc.name || 'N/A'}</p>
+                    <p><strong>Father's Name:</strong> ${acc.fatherName || 'N/A'}</p>
+                    <p><strong>Age:</strong> ${acc.age || 'N/A'}</p>
+                    <p><strong>Phone:</strong> ${acc.phone || 'N/A'}</p>
+                    <p class="md:col-span-3"><strong>R/o:</strong> ${acc.ro || 'N/A'}</p>
+                    <p><strong>Caste:</strong> ${acc.caste || 'N/A'}</p>
+                    <p><strong>Occupation:</strong> ${acc.occupation || 'N/A'}</p>
+                    <p><strong>Arrested:</strong> ${acc.arrested || 'N/A'}</p>
+                    <p><strong>Offender Type:</strong> ${acc.offenderType || 'N/A'}</p>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        accusedHtml = `<p class="text-sm mt-2">Accused is ${crime.accusedKnown || 'Unknown'}.</p>`;
+    }
+
+    return `
+        <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-md">
+            <button onclick="navigate('crimeRecords')" class="mb-4 text-blue-500">&larr; Back to Records</button>
+            <div class="flex justify-between items-start">
+                 <h2 class="text-3xl font-bold mb-2 text-gray-800">${crime.title}</h2>
+                 <span class="px-3 py-1 text-sm font-semibold rounded-full ${crime.status === 'Open' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}">${crime.status}</span>
+            </div>
+            
+            <div class="my-4 p-4 bg-indigo-50 rounded-lg flex items-center space-x-4 flex-wrap gap-2">
+                <span class="font-semibold text-indigo-800">AI Actions:</span>
+                <button onclick="generateCaseSummary(${crime.id})" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg text-sm">✨ Generate Case Summary</button>
+                ${crime.status === 'Open' ? `<button onclick="suggestNextActions(${crime.id})" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg text-sm">✨ Suggest Next Actions</button>` : ''}
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mt-4 text-sm">
+                <p><strong>Cr.No / Year:</strong> ${crime.crNo || 'N/A'} / ${crime.year || 'N/A'}</p>
+                <p><strong>Crime Head (SCRB):</strong> ${crime.category || 'N/A'} &gt; ${crime.subcategory || 'N/A'}</p>
+                <p><strong>Nature:</strong> ${crime.nature || 'N/A'}</p>
+                <p><strong>Sub-Division:</strong> ${crime.subDivision || 'N/A'}</p>
+                <p><strong>Circle/SHO:</strong> ${crime.circle || 'N/A'}</p>
+                <p><strong>Police Station:</strong> ${crime.policeStation || 'N/A'}</p>
+                <p><strong>CC Number:</strong> ${crime.ccNumber || 'N/A'}</p>
+                <p><strong>Case Status:</strong> ${crime.caseStatus || 'N/A'}</p>
+            </div>
+            <div class="mt-4 border-t pt-4">
+                <h3 class="font-bold text-lg">Crime Classification</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mt-2 text-sm">
+                    <p><strong>Type of Crime:</strong> ${crime.crimeType || 'N/A'}</p>
+                    ${crime.crimeType === 'Cheating' ? `<p><strong>Cheating Type:</strong> ${crime.cheatingSubType || 'N/A'}</p>` : ''}
+                    ${crime.crimeType === 'Cyber Crimes' ? `<p><strong>Cyber Crime Type:</strong> ${crime.cyberCrimeSubType || 'N/A'}</p>` : ''}
+                    <p><strong>Classification-1:</strong> ${crime.crimeClassification1 || 'N/A'}</p>
+                    ${crime.crimeClassification1 === 'SC/ST Act' ? `<p><strong>SC/ST Type:</strong> ${crime.scstType || 'N/A'}</p>` : ''}
+                    ${crime.crimeClassification1 === 'NDPS Ganja' ? `<p><strong>NDPS Quantity:</strong> ${crime.ndpsQuantity || 'N/A'}</p>` : ''}
+                    ${crime.crimeClassification1 === 'Enforcement' ? `<p><strong>Enforcement Type:</strong> ${crime.enforcementType || 'N/A'}</p>` : ''}
+                    <p><strong>Classification-2:</strong> ${crime.crimeClassification2 || 'N/A'}</p>
+                    ${crime.crimeClassification2 === 'Other' ? `<p><strong>Other Classification:</strong> ${crime.crimeClassification2Other || 'N/A'}</p>` : ''}
+                </div>
+            </div>
+            <div class="mt-4 border-t pt-4">
+                <h3 class="font-bold text-lg">Key Dates & Disposal</h3>
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mt-2 text-sm">
+                    <p><strong>Date of Offence:</strong> ${crime.dateOfOffence || 'N/A'}</p>
+                    <p><strong>Date of Report:</strong> ${crime.dateOfReport || 'N/A'}</p>
+                    <p><strong>Date of Charge:</strong> ${crime.dateOfCharge || 'N/A'}</p>
+                    <p><strong>Police Disposal:</strong> ${crime.policeDisposal || 'N/A'}</p>
+                    ${crime.policeDisposal === 'False' ? `<p><strong>False Case Type:</strong> ${crime.falseCaseType || 'N/A'}</p>` : ''}
+                    ${crime.falseCaseType === 'Transfer to Other PS' ? `<p><strong>Transferred to:</strong> ${crime.transferPsName || 'N/A'}</p>` : ''}
+                    ${crime.policeDisposal === 'Suspicious Death' ? `<p><strong>Cause of Death:</strong> ${crime.suspiciousDeathCause || 'N/A'}</p><p><strong>Method of Death:</strong> ${crime.suspiciousDeathMethod || 'N/A'}</p>` : ''}
+                    <p><strong>Court Disposal:</strong> ${crime.courtDisposal || 'N/A'}</p>
+                    ${crime.courtDisposal === 'Conviction' ? `<p><strong>Conviction Type:</strong> ${crime.convictionType || 'N/A'}</p>` : ''}
+                    ${crime.courtDisposal === 'Acquittal' ? `<p><strong>Acquittal Type:</strong> ${crime.acquittalType || 'N/A'}</p>` : ''}
+                </div>
+            </div>
+            <div class="mt-4 border-t pt-4">
+                <h3 class="font-bold text-lg">Section of Law</h3>
+                <p class="text-gray-700 whitespace-pre-wrap p-2 bg-gray-50 rounded">${crime.sectionOfLaw || 'N/A'}</p>
+            </div>
+             <div class="mt-4 border-t pt-4">
+                <h3 class="font-bold text-lg">Description</h3>
+                <p class="text-gray-700 whitespace-pre-wrap">${crime.description || 'N/A'}</p>
+            </div>
+            <div class="mt-4 border-t pt-4">
+                <h3 class="font-bold text-lg">Accused Details</h3>
+                ${accusedHtml}
+            </div>
+            <div class="mt-4 border-t pt-4">
+                <h3 class="font-bold text-lg">Complainant & Victim Details</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mt-2 text-sm">
+                    <p><strong>Complainant Type:</strong> ${crime.complainantType || 'N/A'}</p>
+                    <p class="md:col-span-2"><strong>Complainant Name:</strong> ${crime.complainantName || 'N/A'}</p>
+                    <p><strong>Father/Husband Name:</strong> ${crime.complainantFatherHusbandName || 'N/A'}</p>
+                    <p><strong>Age:</strong> ${crime.complainantAge || 'N/A'}</p>
+                    <p><strong>Caste:</strong> ${crime.complainantCaste || 'N/A'}</p>
+                    <p><strong>Occupation:</strong> ${crime.complainantOccupation || 'N/A'}</p>
+                    <p class="md:col-span-3"><strong>Other Details:</strong> ${crime.complainantOtherDetails || 'N/A'}</p>
+                </div>
+                ${(crime.victimStatus && crime.victimStatus !== 'Not Applicable') ? `
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                     <h4 class="font-semibold text-md text-gray-800 mb-2">Victim Details</h4>
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+                         <p><strong>Status:</strong> ${crime.victimStatus}</p>
+                         <p><strong>Name:</strong> ${crime.victimName || 'N/A'}</p>
+                         <p><strong>Father's Name:</strong> ${crime.victimFatherName || 'N/A'}</p>
+                         <p><strong>Age:</strong> ${crime.victimAge || 'N/A'}</p>
+                         <p class="md:col-span-3"><strong>Address:</strong> ${crime.victimAddress || 'N/A'}</p>
+                         <p><strong>Occupation:</strong> ${crime.victimOccupation || 'N/A'}</p>
+                         <p class="md:col-span-2"><strong>Other Details:</strong> ${crime.victimOtherDetails || 'N/A'}</p>
+                    </div>
+                </div>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function CrimeCategoriesManagement() {
+    return `
+        <div class="max-w-4xl mx-auto">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Crime Categories Management</h2>
+            <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h3 class="text-xl font-bold mb-4">Add New Category</h3>
+                <div class="flex space-x-2">
+                    <input type="text" id="newCategoryName" placeholder="New category name" class="flex-grow p-2 border rounded-lg">
+                    <button id="addCategoryBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Add</button>
+                </div>
+            </div>
+            <div id="categoryList" class="space-y-4"></div>
+        </div>
+    `;
+}
+
+function AnalyticsDashboard() {
+    const categoryOptions = state.crimeCategories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    const subDivisionOptions = Object.keys(locationData).map(sd => `<option value="${sd}">${sd}</option>`).join('');
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from({length: 10}, (_, i) => `<option value="${currentYear - i}">${currentYear - i}</option>`).join('');
+
+    return `
+        <h2 class="text-3xl font-bold mb-6 text-gray-800">Analytics Dashboard</h2>
+        <div class="bg-white p-4 rounded-xl shadow-md mb-6">
+            <h3 class="font-bold text-lg mb-2">Filters</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <select id="filterCategory" class="p-2 border rounded-lg"><option value="">All Categories</option>${categoryOptions}</select>
+                <select id="filterSubDivision" class="p-2 border rounded-lg"><option value="">All Sub-Divisions</option>${subDivisionOptions}</select>
+                <select id="filterYear" class="p-2 border rounded-lg"><option value="">All Years</option>${yearOptions}</select>
+                <button id="applyFiltersBtn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">Apply Filters</button>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-xl shadow-md"><h3 class="font-bold text-center mb-2">Crimes by Category</h3><canvas id="categoryChart"></canvas></div>
+            <div class="bg-white p-6 rounded-xl shadow-md"><h3 class="font-bold text-center mb-2">Crimes by Sub-Division</h3><canvas id="subDivisionChart"></canvas></div>
+        </div>
+    `;
+}
+
+function ReportsGeneration() {
+    return `
+        <h2 class="text-3xl font-bold mb-6 text-gray-800">Reports Generation</h2>
+        <p class="text-gray-600">Functionality to generate and export reports in various formats (e.g., PDF, CSV) would be available here.</p>
+    `;
+}
+
+function UserProfileAndSettings() {
+    return `
+        <div class="max-w-lg mx-auto bg-white p-8 rounded-xl shadow-md">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">User Profile & Settings</h2>
+            <div class="space-y-4">
+                <div><label class="block text-sm font-medium text-gray-700">Username</label><p class="mt-1 text-lg font-semibold">${state.user.name}</p></div>
+                <div><label class="block text-sm font-medium text-gray-700">Role</label><p class="mt-1 text-lg">Police Officer</p></div>
+            </div>
+        </div>
+    `;
+}
+
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Event Listeners & DOM Manipulation
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+function addRecordListEventListeners() {
+    renderRecordsTable(state.crimeRecords);
+
+    // Add event listeners for filter controls
+    document.getElementById('apply-filter-btn').addEventListener('click', applyFilters);
+    document.getElementById('reset-filter-btn').addEventListener('click', resetFilters);
+    document.getElementById('export-btn').addEventListener('click', exportToExcel);
+}
+
+function applyFilters() {
+    const crimeType = document.getElementById('filter-crime-type').value;
+    const policeStation = document.getElementById('filter-police-station').value;
+    const dateFrom = document.getElementById('filter-date-from').value;
+    const dateTo = document.getElementById('filter-date-to').value;
+    const keyword = document.getElementById('filter-keyword-search').value.toLowerCase();
+
+    let filteredRecords = state.crimeRecords.filter(crime => {
+        let isMatch = true;
+
+        if (crimeType && crime.category !== crimeType) {
+            isMatch = false;
+        }
+        if (policeStation && crime.policeStation !== policeStation) {
+            isMatch = false;
+        }
+        if (dateFrom && crime.dateOfReport < dateFrom) {
+            isMatch = false;
+        }
+        if (dateTo && crime.dateOfReport > dateTo) {
+            isMatch = false;
+        }
+        if (keyword) {
+            const keywordMatch = 
+                (crime.crNo && crime.crNo.toString().includes(keyword)) ||
+                (crime.title && crime.title.toLowerCase().includes(keyword)) ||
+                (crime.sectionOfLaw && crime.sectionOfLaw.toLowerCase().includes(keyword));
+            if (!keywordMatch) {
+                isMatch = false;
+            }
+        }
+        
+        return isMatch;
+    });
+
+    renderRecordsTable(filteredRecords);
+}
+
+function resetFilters() {
+    document.getElementById('filter-crime-type').value = '';
+    document.getElementById('filter-police-station').value = '';
+    document.getElementById('filter-date-from').value = '';
+    document.getElementById('filter-date-to').value = '';
+    document.getElementById('filter-keyword-search').value = '';
+    renderRecordsTable(state.crimeRecords);
+}
+
+function exportToExcel() {
+    // This is a mock function for the demo
+    alert('Exporting data to Excel... (demo functionality)');
+}
+
+function renderRecordsTable(records) {
+    const tableBody = document.getElementById('recordsTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = records.map(crime => `
+        <tr class="hover:bg-gray-50">
+            <td class="p-3 border-b border-gray-200 text-sm">${crime.crNo}/${crime.year}</td>
+            <td class="p-3 border-b border-gray-200 text-sm">${crime.title}</td>
+            <td class="p-3 border-b border-gray-200 text-sm">${crime.category}</td>
+            <td class="p-3 border-b border-gray-200 text-sm">${crime.dateOfReport}</td>
+            <td class="p-3 border-b border-gray-200 text-sm"><span class="px-2 py-1 text-xs font-semibold rounded-full ${crime.status === 'Open' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}">${crime.status}</span></td>
+            <td class="p-3 border-b border-gray-200 text-sm text-right"><button onclick="viewCrimeDetails(${crime.id})" class="text-indigo-600 hover:text-indigo-900 font-semibold">View</button></td>
+        </tr>
+    `).join('');
+}
+
+function viewCrimeDetails(crimeId) {
+    state.selectedCrimeId = crimeId;
+    navigate('crimeDetail');
+}
+
+function addCrimeFormEventListeners() {
+    const form = document.getElementById('addCrimeForm');
+    if (!form) return;
+
+    // Accordion functionality
+    form.querySelectorAll('.accordion-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const content = header.nextElementSibling;
+            const arrow = header.querySelector('span');
+            if (content.style.maxHeight) {
+                content.style.maxHeight = null;
+                arrow.classList.remove('rotate-180');
+            } else {
+                content.style.maxHeight = content.scrollHeight + "px";
+                arrow.classList.add('rotate-180');
+            }
+        });
+    });
+
+    // Dynamic dropdowns and other listeners
+    const subDivisionSelect = form.querySelector('#subDivision');
+    const circleSelect = form.querySelector('#circle');
+    const policeStationSelect = form.querySelector('#policeStation');
+    const categorySelect = form.querySelector('#crimeCategory');
+    const subcategorySelect = form.querySelector('#crimeSubcategory');
+    const dateOfReportInput = form.querySelector('#dateOfReport');
+    const draftFirBtn = form.querySelector('#draftFirBtn');
+    const accusedStatusSelect = form.querySelector('#accusedStatus');
+    const accusedListSection = form.querySelector('#accusedListSection');
+    const addAccusedBtn = form.querySelector('#addAccusedBtn');
+    const victimStatusSelect = form.querySelector('#victimStatus');
+    const victimDetailsSection = form.querySelector('#victimDetailsSection');
+    const crimeTypeSelect = form.querySelector('#crimeType');
+    const cheatingSubTypeSection = form.querySelector('#cheatingSubTypeSection');
+    const cyberCrimeSubTypeSection = form.querySelector('#cyberCrimeSubTypeSection');
+    const crimeClassification1Select = form.querySelector('#crimeClassification1');
+    const scstSection = form.querySelector('#scstSection');
+    const ndpsSection = form.querySelector('#ndpsSection');
+    const enforcementTypeSection = form.querySelector('#enforcementTypeSection');
+    const crimeClassification2Select = form.querySelector('#crimeClassification2');
+    const crimeClassification2OtherSection = form.querySelector('#crimeClassification2OtherSection');
+    const courtDisposalSelect = form.querySelector('#courtDisposal');
+    const convictionTypeSection = form.querySelector('#convictionTypeSection');
+    const acquittalTypeSection = form.querySelector('#acquittalTypeSection');
+    const policeDisposalSelect = form.querySelector('#policeDisposal');
+    const falseCaseSection = form.querySelector('#falseCaseSection');
+    const transferPsSection = form.querySelector('#transferPsSection');
+    const falseCaseTypeSelect = form.querySelector('#falseCaseType');
+
+    victimStatusSelect.addEventListener('change', (e) => {
+        victimDetailsSection.classList.toggle('hidden', e.target.value === 'Not Applicable');
+    });
+
+    accusedStatusSelect.addEventListener('change', (e) => {
+        const isKnown = e.target.value === 'Known';
+        accusedListSection.classList.toggle('hidden', !isKnown);
+        addAccusedBtn.classList.toggle('hidden', !isKnown);
+    });
+    
+    crimeTypeSelect.addEventListener('change', (e) => {
+        cheatingSubTypeSection.classList.toggle('hidden', e.target.value !== 'Cheating');
+        cyberCrimeSubTypeSection.classList.toggle('hidden', e.target.value !== 'Cyber Crimes');
+    });
+    
+    crimeClassification1Select.addEventListener('change', (e) => {
+        scstSection.classList.toggle('hidden', e.target.value !== 'SC/ST Act');
+        ndpsSection.classList.toggle('hidden', e.target.value !== 'NDPS Ganja');
+        enforcementTypeSection.classList.toggle('hidden', e.target.value !== 'Enforcement');
+    });
+
+    crimeClassification2Select.addEventListener('change', (e) => {
+        crimeClassification2OtherSection.classList.toggle('hidden', e.target.value !== 'Other');
+    });
+    
+    courtDisposalSelect.addEventListener('change', (e) => {
+        convictionTypeSection.classList.toggle('hidden', e.target.value !== 'Conviction');
+        acquittalTypeSection.classList.toggle('hidden', e.target.value !== 'Acquittal');
+    });
+
+    policeDisposalSelect.addEventListener('change', (e) => {
+        falseCaseSection.classList.toggle('hidden', e.target.value !== 'False');
+        if (e.target.value !== 'False') {
+             transferPsSection.classList.add('hidden');
+        }
+    });
+
+    falseCaseTypeSelect.addEventListener('change', (e) => {
+        transferPsSection.classList.toggle('hidden', e.target.value !== 'Transfer to Other PS');
+    });
+
+    addAccusedBtn.addEventListener('click', addAccusedEntry);
+    
+    subDivisionSelect.addEventListener('change', () => {
+        const selectedSD = subDivisionSelect.value;
+        circleSelect.innerHTML = '<option value="">Select...</option>';
+        policeStationSelect.innerHTML = '<option value="">Select...</option>';
+        circleSelect.disabled = true;
+        policeStationSelect.disabled = true;
+        if (selectedSD && locationData[selectedSD]) {
+            Object.keys(locationData[selectedSD]).forEach(circle => {
+                circleSelect.innerHTML += `<option value="${circle}">${circle}</option>`;
+            });
+            circleSelect.disabled = false;
+        }
+    });
+
+    circleSelect.addEventListener('change', () => {
+        const selectedSD = subDivisionSelect.value;
+        const selectedCircle = circleSelect.value;
+        policeStationSelect.innerHTML = '<option value="">Select...</option>';
+        policeStationSelect.disabled = true;
+        if (selectedSD && selectedCircle && locationData[selectedSD][selectedCircle]) {
+            locationData[selectedSD][selectedCircle].forEach(ps => {
+                policeStationSelect.innerHTML += `<option value="${ps}">${ps}</option>`;
+            });
+            policeStationSelect.disabled = false;
+        }
+    });
+
+    categorySelect.addEventListener('change', () => {
+        const selectedCatName = categorySelect.value;
+        const category = state.crimeCategories.find(c => c.name === selectedCatName);
+        subcategorySelect.innerHTML = '<option value="">Select...</option>';
+        subcategorySelect.disabled = true;
+        
+        if (category && category.subcategories.length > 0) {
+            category.subcategories.forEach(sub => subcategorySelect.innerHTML += `<option value="${sub}">${sub}</option>`);
+            subcategorySelect.disabled = false;
+        }
+    });
+
+    dateOfReportInput.addEventListener('change', () => {
+        const reportDate = new Date(dateOfReportInput.value);
+        if (!isNaN(reportDate.getTime())) {
+            const today = new Date();
+            const diffTime = Math.abs(today - reportDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            document.getElementById('daysSinceReport').value = diffDays;
+        } else {
+            document.getElementById('daysSinceReport').value = '';
+        }
+    });
+
+    draftFirBtn.addEventListener('click', draftFirDescription);
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const accusedKnown = form.querySelector('#accusedStatus').value;
+        let accusedDetailsData = [];
+        if (accusedKnown === 'Known') {
+            form.querySelectorAll('.accused-entry').forEach(entry => {
+                accusedDetailsData.push({
+                    name: entry.querySelector('.accused-name').value, fatherName: entry.querySelector('.accused-father-name').value, age: entry.querySelector('.accused-age').value, ro: entry.querySelector('.accused-ro').value, caste: entry.querySelector('.accused-caste').value, occupation: entry.querySelector('.accused-occupation').value, phone: entry.querySelector('.accused-phone').value, arrested: entry.querySelector('.accused-arrested').value, offenderType: entry.querySelector('.accused-offender-type').value,
+                });
+            });
+        }
+        
+        const newRecord = {
+            id: Date.now(),
+            crNo: form.querySelector('#crNo').value, year: form.querySelector('#year').value, subDivision: form.querySelector('#subDivision').value, circle: form.querySelector('#circle').value, policeStation: form.querySelector('#policeStation').value, category: form.querySelector('#crimeCategory').value, subcategory: form.querySelector('#crimeSubcategory').value, nature: form.querySelector('#nature').value, title: form.querySelector('#crimeTitle').value, sectionOfLaw: form.querySelector('#sectionOfLaw').value, dateOfOffence: form.querySelector('#dateOfOffence').value, dateOfReport: form.querySelector('#dateOfReport').value, sectionModificationDate: form.querySelector('#sectionModificationDate').value, accusedKnown: accusedKnown, accusedDetails: accusedDetailsData, complainantType: form.querySelector('#complainantType').value, complainantName: form.querySelector('#complainantName').value, complainantFatherHusbandName: form.querySelector('#complainantFatherHusbandName').value, complainantAge: form.querySelector('#complainantAge').value, complainantOccupation: form.querySelector('#complainantOccupation').value, complainantOtherDetails: form.querySelector('#complainantOtherDetails').value, victimStatus: form.querySelector('#victimStatus').value, victimName: form.querySelector('#victimName').value, victimFatherName: form.querySelector('#victimFatherName').value, victimAge: form.querySelector('#victimAge').value, victimAddress: form.querySelector('#victimAddress').value, victimOccupation: form.querySelector('#victimOccupation').value, victimOtherDetails: form.querySelector('#victimOtherDetails').value, dateOfCharge: form.querySelector('#dateOfCharge').value, ccNumber: `${form.querySelector('#ccType').value} ${form.querySelector('#ccNumber').value}`, dateOfCCObtained: form.querySelector('#dateOfCCObtained').value, disposalDate: form.querySelector('#disposalDate').value, reopenDate: form.querySelector('#reopenDate').value, status: 'Open', description: form.querySelector('#crimeDescription').value,
+            crimeType: form.querySelector('#crimeType').value,
+            cheatingSubType: form.querySelector('#cheatingSubType').value,
+            cyberCrimeSubType: form.querySelector('#cyberCrimeSubType').value,
+            crimeClassification1: form.querySelector('#crimeClassification1').value,
+            scstType: form.querySelector('#scstType').value,
+            ndpsQuantity: form.querySelector('#ndpsQuantity').value,
+            enforcementType: form.querySelector('#enforcementType').value,
+            crimeClassification2: form.querySelector('#crimeClassification2').value,
+            crimeClassification2Other: form.querySelector('#crimeClassification2Other').value,
+            courtDisposal: form.querySelector('#courtDisposal').value,
+            convictionType: form.querySelector('#convictionType').value,
+            acquittalType: form.querySelector('#acquittalType').value,
+            policeDisposal: form.querySelector('#policeDisposal').value,
+            falseCaseType: form.querySelector('#falseCaseType').value,
+            transferPsName: form.querySelector('#transferPsName').value,
+            caseStatus: form.querySelector('#caseStatus').value,
+            complainantCaste: form.querySelector('#complainantCaste').value,
+        };
+        state.crimeRecords.push(newRecord);
+        saveData();
+        navigate('crimeRecords');
+    });
+}
+
+function addAccusedEntry() {
+    const container = document.getElementById('accusedList');
+    const entryWrapper = document.createElement('div');
+    entryWrapper.className = 'accused-entry bg-gray-100 p-4 rounded-lg relative';
+    
+    const uniqueId = `accused_${Date.now()}`;
+    entryWrapper.innerHTML = `
+        <button type="button" class="absolute top-2 right-2 bg-red-500 text-white rounded-full h-6 w-6 flex items-center justify-center font-bold remove-btn">X</button>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="md:col-span-2 lg:col-span-3"><label for="name_${uniqueId}" class="text-sm">Name & Full Details</label><textarea id="name_${uniqueId}" class="accused-name w-full p-2 border rounded-lg mt-1" rows="2"></textarea></div>
+            <div><label for="father_${uniqueId}" class="text-sm">Father Name</label><input type="text" id="father_${uniqueId}" class="accused-father-name w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="age_${uniqueId}" class="text-sm">Age</label><input type="number" id="age_${uniqueId}" class="accused-age w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="phone_${uniqueId}" class="text-sm">Phone</label><input type="text" id="phone_${uniqueId}" class="accused-phone w-full p-2 border rounded-lg mt-1"></div>
+            <div class="md:col-span-2 lg:col-span-3"><label for="ro_${uniqueId}" class="text-sm">R/o (Address)</label><textarea id="ro_${uniqueId}" class="accused-ro w-full p-2 border rounded-lg mt-1" rows="2"></textarea></div>
+            <div><label for="caste_${uniqueId}" class="text-sm">Caste</label><input type="text" id="caste_${uniqueId}" class="accused-caste w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="occupation_${uniqueId}" class="text-sm">Occupation</label><input type="text" id="occupation_${uniqueId}" class="accused-occupation w-full p-2 border rounded-lg mt-1"></div>
+            <div><label for="arrested_${uniqueId}" class="text-sm">Arrested?</label><select id="arrested_${uniqueId}" class="accused-arrested w-full p-2 border rounded-lg mt-1"><option>Not Arrested</option><option>Arrested</option></select></div>
+            <div class="md:col-span-2 lg:col-span-3"><label for="offenderType_${uniqueId}" class="text-sm">Offender Type</label><select id="offenderType_${uniqueId}" class="accused-offender-type w-full p-2 border rounded-lg mt-1"><option>First-time Offender</option><option>Repeated Offender</option></select></div>
+        </div>`;
+    container.appendChild(entryWrapper);
+    entryWrapper.querySelector('.remove-btn').addEventListener('click', () => entryWrapper.remove());
+}
+
+function renderEnforcementSection() {
+    const section = document.getElementById('enforcementSection');
+    let content = `<h3 class="font-bold mb-2">Enforcement Case Type</h3>`;
+    enforcementCategories.forEach(cat => {
+        content += `<div class="flex items-center justify-between mb-1"><span>${cat}</span><button type="button" class="text-red-500 text-xs" onclick="deleteEnforcementCat('${cat}')">Delete</button></div>`;
+    });
+    content += `<div class="flex space-x-2 mt-2"><input type="text" id="newEnforcementCat" placeholder="New type" class="flex-grow p-1 border rounded"><button type="button" class="bg-blue-500 text-white text-xs px-2 rounded" onclick="addEnforcementCat()">Add</button></div>`;
+    section.innerHTML = content;
+}
+
+function addEnforcementCat() {
+    const input = document.getElementById('newEnforcementCat');
+    if (input.value.trim()) {
+        enforcementCategories.push(input.value.trim());
+        renderEnforcementSection();
+    }
+}
+
+function deleteEnforcementCat(catName) {
+    enforcementCategories = enforcementCategories.filter(c => c !== catName);
+    renderEnforcementSection();
+}
+
+function addCategoryManagementEventListeners() {
+    document.getElementById('addCategoryBtn').addEventListener('click', () => {
+        const newCategoryName = document.getElementById('newCategoryName').value.trim();
+        if (newCategoryName) {
+            state.crimeCategories.push({ id: Date.now(), name: newCategoryName, subcategories: [] });
+            saveData();
+            renderCategoryList();
+            document.getElementById('newCategoryName').value = '';
+        }
+    });
+    renderCategoryList();
+}
+
+function renderCategoryList() {
+    const listContainer = document.getElementById('categoryList');
+    if (!listContainer) return;
+    listContainer.innerHTML = state.crimeCategories.map(cat => `
+        <div class="bg-white p-6 rounded-xl shadow-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">${cat.name}</h3>
+                <button onclick="removeCategory(${cat.id})" class="text-red-500 hover:text-red-700 font-bold">Remove Category</button>
+            </div>
+            <div class="pl-4">
+                <h4 class="font-semibold mb-2">Subcategories:</h4>
+                <ul class="list-disc list-inside space-y-1 mb-4">
+                    ${cat.subcategories.map(sub => `<li class="flex justify-between items-center"><span>${sub}</span><button onclick="removeSubcategory(${cat.id}, '${sub}')" class="text-sm text-red-500 hover:text-red-700">Remove</button></li>`).join('') || '<li>No subcategories yet.</li>'}
+                </ul>
+                <div class="flex space-x-2">
+                    <input type="text" id="newSubFor-${cat.id}" placeholder="New subcategory" class="flex-grow p-2 border rounded-lg">
+                    <button onclick="addSubcategory(${cat.id})" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-3 rounded-lg">Add Sub</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function removeCategory(categoryId) {
+    state.crimeCategories = state.crimeCategories.filter(c => c.id !== categoryId);
+    saveData();
+    renderCategoryList();
+}
+
+function addSubcategory(categoryId) {
+    const input = document.getElementById(`newSubFor-${categoryId}`);
+    if (input && input.value.trim()) {
+        const category = state.crimeCategories.find(c => c.id === categoryId);
+        category.subcategories.push(input.value.trim());
+        saveData();
+        renderCategoryList();
+    }
+}
+
+function removeSubcategory(categoryId, subcategoryName) {
+    const category = state.crimeCategories.find(c => c.id === categoryId);
+    if (category) {
+        category.subcategories = category.subcategories.filter(s => s !== subcategoryName);
+        saveData();
+        renderCategoryList();
+    }
+}
+
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Analytics & Charting
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+function initializeAnalytics() {
+    document.getElementById('applyFiltersBtn').addEventListener('click', updateCharts);
+    updateCharts();
+}
+
+function updateCharts() {
+    const categoryFilter = document.getElementById('filterCategory').value;
+    const subDivisionFilter = document.getElementById('filterSubDivision').value;
+    const yearFilter = document.getElementById('filterYear').value;
+
+    const filteredData = state.crimeRecords.filter(crime => {
+        const categoryMatch = !categoryFilter || crime.category === categoryFilter;
+        const subDivisionMatch = !subDivisionFilter || crime.subDivision === subDivisionFilter;
+        const yearMatch = !yearFilter || crime.year == yearFilter;
+        return categoryMatch && subDivisionMatch && yearMatch;
+    });
+
+    renderCategoryChart(filteredData);
+    renderSubDivisionChart(filteredData);
+}
+
+function renderCategoryChart(data) {
+    const ctx = document.getElementById('categoryChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (state.charts.category) state.charts.category.destroy();
+
+    const categoryCounts = data.reduce((acc, crime) => {
+        acc[crime.category] = (acc[crime.category] || 0) + 1;
+        return acc;
+    }, {});
+    
+    const labels = Object.keys(categoryCounts);
+    const counts = Object.values(categoryCounts);
+
+    state.charts.category = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Crimes by Category',
+                data: counts,
+                backgroundColor: ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'],
+                hoverOffset: 4
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
+
+function renderSubDivisionChart(data) {
+    const ctx = document.getElementById('subDivisionChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (state.charts.subDivision) state.charts.subDivision.destroy();
+
+    const subDivisionCounts = data.reduce((acc, crime) => {
+        acc[crime.subDivision] = (acc[crime.subDivision] || 0) + 1;
+        return acc;
+    }, {});
+
+    const labels = Object.keys(subDivisionCounts);
+    const counts = Object.values(subDivisionCounts);
+
+    state.charts.subDivision = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Crimes by Sub-Division',
+                data: counts,
+                backgroundColor: '#3B82F6'
+            }]
+        },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
+    });
+}
+
+
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Gemini API Integration
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+async function callGeminiApi(prompt, button) {
+    const originalButtonText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = `<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>`;
+
+    let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+    const payload = { contents: chatHistory };
+    const apiKey = ""; 
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+        const result = await response.json();
+        return result.candidates?.[0]?.content?.parts?.[0]?.text || "Could not generate a response.";
+    } catch (error) {
+        console.error("Gemini API call failed:", error);
+        return "An error occurred while contacting the AI service.";
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalButtonText;
+    }
+}
+
+async function draftFirDescription(event) {
+    const form = document.getElementById('addCrimeForm');
+    
+    const complainantDetails = `Name: ${form.querySelector('#complainantName').value || 'N/A'}, Father/Husband: ${form.querySelector('#complainantFatherHusbandName').value || 'N/A'}, Age: ${form.querySelector('#complainantAge').value || 'N/A'}`;
+    let accusedDetailsStr = form.querySelector('#accusedStatus').value;
+    if (accusedDetailsStr === 'Known') {
+        accusedDetailsStr = Array.from(form.querySelectorAll('.accused-entry')).map((entry, i) => `Accused #${i + 1}: ${entry.querySelector('.accused-name').value || 'N/A'}`).join('; ');
+    }
+
+    const data = {
+        title: form.querySelector('#crimeTitle').value, category: form.querySelector('#crimeCategory').value, subcategory: form.querySelector('#crimeSubcategory').value, dateOfOffence: form.querySelector('#dateOfOffence').value, policeStation: form.querySelector('#policeStation').value, complainant: complainantDetails, accused: accusedDetailsStr, sectionOfLaw: form.querySelector('#sectionOfLaw').value
+    };
+
+    if (!data.title || !data.category) {
+        showGeminiModal('Input Required', 'Please fill in at least the Title and Crime Head (SCRB) before drafting the FIR description.');
+        return;
+    }
+
+    const prompt = `
+        Draft a formal First Information Report (FIR) description for a police crime database in Nalgonda, Telangana, India.
+        Use the following structured data. The description should be narrative, professional, and suitable for official records.
+
+        - Case Title: ${data.title}
+        - Crime Category: ${data.category} (${data.subcategory})
+        - Date of Offence: ${data.dateOfOffence}
+        - Police Station: ${data.policeStation}
+        - Complainant Details: ${data.complainant}
+        - Accused Details: ${data.accused}
+        - Applicable Law Sections: ${data.sectionOfLaw || 'To be determined'}
+
+        Generate the description only. Do not add any introductory phrases like "Here is the draft".
+    `;
+    
+    const description = await callGeminiApi(prompt, event.target);
+    form.querySelector('#crimeDescription').value = description;
+}
+
+
+async function generateCaseSummary(crimeId) {
+    const crime = state.crimeRecords.find(c => c.id === crimeId);
+    if (!crime) return;
+
+    const prompt = `
+        Generate a concise, narrative summary for the following police case record from Nalgonda, Telangana, India.
+        The summary should be easy to read and highlight the key aspects of the case.
+
+        - Case Title: ${crime.title}
+        - Crime No/Year: ${crime.crNo}/${crime.year}
+        - Police Station: ${crime.policeStation}
+        - Date of Report: ${crime.dateOfReport}
+        - Category: ${crime.category} (${crime.subcategory})
+        - Status: ${crime.status}
+        - Section of Law: ${crime.sectionOfLaw}
+        - Description: ${crime.description}
+
+        Generate the summary only.
+    `;
+    const summary = await callGeminiApi(prompt, event.target);
+    showGeminiModal('Case Summary', summary);
+}
+
+async function suggestNextActions(crimeId) {
+    const crime = state.crimeRecords.find(c => c.id === crimeId);
+    if (!crime) return;
+    
+    const accusedDetailsText = (crime.accusedKnown === 'Known' && crime.accusedDetails)
+        ? JSON.stringify(crime.accusedDetails, null, 2)
+        : 'Unknown';
+
+    const prompt = `
+        As an experienced police investigator in Nalgonda, Telangana, India, suggest 3 to 5 clear, actionable next steps for the following open case.
+        Base your suggestions on the provided details.
+
+        - Case Title: ${crime.title}
+        - Crime No/Year: ${crime.crNo}/${crime.year}
+        - Police Station: ${crime.policeStation}
+        - Date of Report: ${crime.dateOfReport}
+        - Category: ${crime.category} (${crime.subcategory})
+        - Section of Law: ${crime.sectionOfLaw}
+        - Description: ${crime.description}
+        - Accused Details: ${accusedDetailsText}
+
+        Format the response as a numbered list.
+    `;
+    const actions = await callGeminiApi(prompt, event.target);
+    showGeminiModal('Suggested Next Actions', actions);
+}
+
+function showGeminiModal(title, content) {
+    document.getElementById('geminiModalTitle').textContent = title;
+    document.getElementById('geminiModalBody').textContent = content;
+    document.getElementById('geminiModal').classList.remove('hidden');
+}
+
+function hideGeminiModal() {
+    document.getElementById('geminiModal').classList.add('hidden');
+}
+
+</script>
+</body>
+</html>
